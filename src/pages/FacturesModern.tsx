@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../components/DashboardLayout';
 import {
-  Plus, Search, FileText, Eye, Trash2, Printer,
+  Plus, Search, FileText, Eye, Trash2, Download,
   CheckCircle2, XCircle, Clock, AlertCircle, CreditCard, Calendar, ArrowUpDown
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -27,6 +27,7 @@ interface Invoice {
 export const FacturesModern: React.FC = () => {
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const handleDownloadPdf = (id: string) => window.open(`/api/pdf/facture/${id}`, '_blank');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,6 +141,7 @@ export const FacturesModern: React.FC = () => {
                     <td className="px-3 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => navigate(`/dashboard/vente/factures/${inv.id}`)} className="p-1.5 rounded hover:bg-gray-100 text-slate-400 hover:text-emerald-600"><Eye size={16} /></button>
+                        <button onClick={() => handleDownloadPdf(inv.id)} className="p-1.5 rounded hover:bg-violet-50 text-slate-400 hover:text-violet-600"><Download size={16} /></button>
                         <button onClick={() => handleDelete(inv.id)} className="p-1.5 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600"><Trash2 size={16} /></button>
                       </div>
                     </td>

@@ -15,6 +15,7 @@ import regleFacturationAutoRoutes from "./regleFacturationAuto.routes";
 import dashboardRoutes from "./dashboard.routes";
 import clientPortalRoutes from "./clientPortal.routes";
 import consultationRoutes from "./consultation.routes";
+import pdfRoutes from "./pdf.routes";
 
 const router = Router();
 
@@ -34,5 +35,6 @@ router.use("/promotions", promotionRoutes);
 router.use("/regles-facturation", regleFacturationAutoRoutes);
 router.use("/dashboard", dashboardRoutes);
 router.use("/consultation", consultationRoutes);
+router.use("/pdf", pdfRoutes);
 
 export default router;

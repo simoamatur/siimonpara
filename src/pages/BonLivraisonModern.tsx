@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../components/DashboardLayout';
 import {
   Plus, Search, FileText, Edit2, Trash2, Eye,
-  CheckCircle2, XCircle, Clock, Package, Calendar, Truck, Printer,
+  CheckCircle2, XCircle, Clock, Package, Calendar, Truck,
   ChevronLeft, ChevronRight, ArrowUpDown, Download, AlertCircle,
   Copy, Phone, MapPin, User, Calculator
 } from 'lucide-react';
@@ -46,6 +46,7 @@ interface BonLivraison {
 export const BonLivraisonModern: React.FC = () => {
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const handleDownloadPdf = (id: string) => window.open(`/api/pdf/bon-livraison/${id}`, '_blank');
   const [bons, setBons] = useState<BonLivraison[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -202,6 +203,7 @@ export const BonLivraisonModern: React.FC = () => {
                   <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-1">
                       <button onClick={() => handleView(bon)} className="p-1.5 rounded hover:bg-gray-100 text-slate-400 hover:text-emerald-600"><Eye size={16} /></button>
+                      <button onClick={() => handleDownloadPdf(bon.id)} className="p-1.5 rounded hover:bg-violet-50 text-slate-400 hover:text-violet-600"><Download size={16} /></button>
                       {!bon.validated && <button onClick={() => handleValidate(bon.id)} className="p-1.5 rounded hover:bg-emerald-50 text-slate-400 hover:text-emerald-600"><CheckCircle2 size={16} /></button>}
                       {!bon.validated && <button onClick={() => handleDelete(bon.id)} className="p-1.5 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600"><Trash2 size={16} /></button>}
                     </div>
