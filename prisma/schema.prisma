@@ -1,0 +1,752 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==============================
+// CORE & AUTH
+// ==============================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("USER") // ADMIN, USER, DELIVERY, CLIENT
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bonsLivraison           BonLivraison[]
+  bonsLivraisonAssigned   DocumentAffectation[]
+  commandesClient         CommandeClient[]
+  mouvementsStock         MouvementStock[]
+  inventaires             Inventaire[]
+  reglements              Reglement[]
+  reglementsFournisseur   ReglementFournisseur[]
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  libelle     String
+  description String?
+  permissions Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==============================
+// PARAMÈTRES
+// ==============================
+
+model Ville {
+  id      String @id @default(cuid())
+  nom     String
+  zones   Zone[]
+  clients Client[]
+  fournisseurs Fournisseur[]
+}
+
+model Zone {
+  id           String   @id @default(cuid())
+  nom          String
+  villeId      String
+  ville        Ville    @relation(fields: [villeId], references: [id], onDelete: Cascade)
+  clients      Client[]
+  fournisseurs Fournisseur[]
+  livreurs     Livreur[]
+}
+
+model Famille {
+  id         String       @id @default(cuid())
+  nom        String       @unique
+  sousFamilles SousFamille[]
+  produits   Product[]
+}
+
+model SousFamille {
+  id        String  @id @default(cuid())
+  nom       String
+  familleId String
+  famille   Famille @relation(fields: [familleId], references: [id], onDelete: Cascade)
+  produits  Product[]
+}
+
+model TVA {
+  id      String  @id @default(cuid())
+  taux    Float   @unique
+  libelle String
+  produits Product[]
+}
+
+model Depot {
+  id        String    @id @default(cuid())
+  nom       String    @unique
+  adresse   String?
+  produits  Product[]
+  mouvementsStock MouvementStock[]
+  inventaires     Inventaire[]
+  bonsReception   BonReception[]
+}
+
+model ModeReglement {
+  id               String              @id @default(cuid())
+  nom              String              @unique
+  reglements       Reglement[]
+  reglementsFournisseur ReglementFournisseur[]
+}
+
+model CategorieClient {
+  id      String   @id @default(cuid())
+  nom     String   @unique
+  clients Client[]
+}
+
+model GroupeRemise {
+  id      String   @id @default(cuid())
+  nom     String   @unique
+  taux    Float    @default(0)
+  clients Client[]
+}
+
+model Livreur {
+  id        String             @id @default(cuid())
+  nom       String
+  telephone String?
+  vehicule  String?
+  zoneId    String?
+  zone      Zone?              @relation(fields: [zoneId], references: [id])
+  isActif   Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  routes    RouteLivraison[]
+}
+
+// ==============================
+// CLIENTS & FOURNISSEURS
+// ==============================
+
+model Client {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  email        String?
+  password     String?  // for client portal login
+  phone        String?
+  address      String?
+  city         String?
+  villeId      String?
+  ville        Ville?   @relation(fields: [villeId], references: [id])
+  zoneId       String?
+  zone         Zone?    @relation(fields: [zoneId], references: [id])
+  categorieId  String?
+  categorie    CategorieClient? @relation(fields: [categorieId], references: [id])
+  groupeRemiseId String?
+  groupeRemise GroupeRemise?   @relation(fields: [groupeRemiseId], references: [id])
+  discountRate Float    @default(0)
+  creditPlafond Float   @default(0)
+  solde        Float    @default(0)
+  isActif      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bonsLivraison        BonLivraison[]
+  factures             Facture[]
+  bonsRetour           BonRetour[]
+  bonsAvoir            BonAvoir[]
+  reglements           Reglement[]
+  commandesClient      CommandeClient[]
+}
+
+model Fournisseur {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  nom          String
+  email        String?
+  telephone    String?
+  adresse      String?
+  villeId      String?
+  ville        Ville?   @relation(fields: [villeId], references: [id])
+  zoneId       String?
+  zone         Zone?    @relation(fields: [zoneId], references: [id])
+  solde        Float    @default(0)
+  isActif      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  demandesPrix         DemandePrix[]
+  bonsReception        BonReception[]
+  factures             FactureFournisseur[]
+  bonsRetour           BonRetourFournisseur[]
+  bonsAvoir            BonAvoirFournisseur[]
+  reglements           ReglementFournisseur[]
+}
+
+// ==============================
+// PRODUITS
+// ==============================
+
+model Product {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  brand       String?
+  familleId   String?
+  famille     Famille?     @relation(fields: [familleId], references: [id])
+  sousFamilleId String?
+  sousFamille SousFamille? @relation(fields: [sousFamilleId], references: [id])
+  unit        String       @default("Unité")
+  buyPrice    Float        @default(0)
+  sellPrice   Float        @default(0)
+  tvaId       String?
+  tva         TVA?         @relation(fields: [tvaId], references: [id])
+  stock       Int          @default(0)
+  stockMin    Int          @default(0)
+  depotId     String?
+  depot       Depot?       @relation(fields: [depotId], references: [id])
+  isActif     Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  items              BonLivraisonItem[]
+  factureItems       FactureItem[]
+  retourItems        BonRetourItem[]
+  avoirItems         BonAvoirItem[]
+  demandePrixItems   DemandePrixItem[]
+  receptionItems     BonReceptionItem[]
+  factureFournisseurItems FactureFournisseurItem[]
+  retourFournisseurItems  BonRetourFournisseurItem[]
+  avoirFournisseurItems   BonAvoirFournisseurItem[]
+  mouvementsStock    MouvementStock[]
+  inventaireItems    InventaireItem[]
+  commandeItems      CommandeClientItem[]
+  promotions         Promotion[]
+}
+
+// ==============================
+// VENTES - BON DE LIVRAISON
+// ==============================
+
+model BonLivraison {
+  id           String           @id @default(cuid())
+  reference    String           @unique
+  date         DateTime         @default(now())
+  clientId     String
+  client       Client           @relation(fields: [clientId], references: [id])
+  userId       String
+  user         User             @relation(fields: [userId], references: [id])
+  totalHT      Float            @default(0)
+  totalTVA     Float            @default(0)
+  totalTTC     Float            @default(0)
+  discount     Float            @default(0)
+  validated    Boolean          @default(false)
+  printedCount Int              @default(0)
+  paymentMode  String           @default("ESPÈCE")
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  items        BonLivraisonItem[]
+  affectations DocumentAffectation[]
+}
+
+model BonLivraisonItem {
+  id             String        @id @default(cuid())
+  bonLivraisonId String
+  bonLivraison   BonLivraison  @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product       @relation(fields: [productId], references: [id])
+  quantity       Int
+  priceHT        Float
+  discount       Float         @default(0)
+  tva            Float         @default(20)
+  totalHT        Float
+  totalTTC       Float
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+// ==============================
+// VENTES - FACTURE
+// ==============================
+
+model Facture {
+  id        String       @id @default(cuid())
+  reference String       @unique
+  date      DateTime     @default(now())
+  clientId  String
+  client    Client       @relation(fields: [clientId], references: [id])
+  blId      String?
+  totalHT   Float        @default(0)
+  totalTVA  Float        @default(0)
+  totalTTC  Float        @default(0)
+  dueDate   DateTime?
+  statut    String       @default("impayée") // payée, impayée, partielle
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  items     FactureItem[]
+  reglements ReglementItem[]
+}
+
+model FactureItem {
+  id        String  @id @default(cuid())
+  factureId String
+  facture   Facture @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  priceHT   Float
+  discount  Float   @default(0)
+  tva       Float   @default(20)
+  totalHT   Float
+  totalTTC  Float
+}
+
+// ==============================
+// VENTES - RETOUR
+// ==============================
+
+model BonRetour {
+  id        String      @id @default(cuid())
+  reference String      @unique
+  date      DateTime    @default(now())
+  clientId  String
+  client    Client      @relation(fields: [clientId], references: [id])
+  blId      String?
+  motif     String?
+  totalHT   Float       @default(0)
+  totalTTC  Float       @default(0)
+  createdAt DateTime    @default(now())
+
+  items     BonRetourItem[]
+  bonsAvoir BonAvoir[]
+}
+
+model BonRetourItem {
+  id         String    @id @default(cuid())
+  retourId   String
+  retour     BonRetour @relation(fields: [retourId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product   @relation(fields: [productId], references: [id])
+  quantity   Int
+  priceHT    Float
+  totalHT    Float
+  totalTTC   Float
+}
+
+// ==============================
+// VENTES - AVOIR
+// ==============================
+
+model BonAvoir {
+  id        String       @id @default(cuid())
+  reference String       @unique
+  date      DateTime     @default(now())
+  clientId  String
+  client    Client       @relation(fields: [clientId], references: [id])
+  retourId  String?
+  retour    BonRetour?   @relation(fields: [retourId], references: [id])
+  totalTTC  Float        @default(0)
+  utilise   Boolean      @default(false)
+  createdAt DateTime     @default(now())
+
+  items     BonAvoirItem[]
+}
+
+model BonAvoirItem {
+  id        String   @id @default(cuid())
+  avoirId   String
+  avoir     BonAvoir @relation(fields: [avoirId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  montant   Float
+}
+
+// ==============================
+// VENTES - RÈGLEMENT
+// ==============================
+
+model Reglement {
+  id            String           @id @default(cuid())
+  reference     String           @unique
+  date          DateTime         @default(now())
+  clientId      String
+  client        Client           @relation(fields: [clientId], references: [id])
+  montant       Float
+  modePaiementId String?
+  modePaiement  ModeReglement?   @relation(fields: [modePaiementId], references: [id])
+  referenceChèque String?
+  userId        String?
+  user          User?            @relation(fields: [userId], references: [id])
+  createdAt     DateTime         @default(now())
+
+  items         ReglementItem[]
+}
+
+model ReglementItem {
+  id          String   @id @default(cuid())
+  reglementId String
+  reglement   Reglement @relation(fields: [reglementId], references: [id], onDelete: Cascade)
+  factureId   String
+  facture     Facture  @relation(fields: [factureId], references: [id])
+  montantApplique Float
+}
+
+// ==============================
+// VENTES - LIVRAISON
+// ==============================
+
+model RouteLivraison {
+  id            String                @id @default(cuid())
+  reference     String                @unique
+  livreurId     String
+  livreur       Livreur               @relation(fields: [livreurId], references: [id])
+  date          DateTime              @default(now())
+  statut        String                @default("en_cours") // en_cours, terminée
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  affectations  DocumentAffectation[]
+}
+
+model DocumentAffectation {
+  id              String        @id @default(cuid())
+  routeId         String
+  route           RouteLivraison @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  bonLivraisonId  String
+  bonLivraison    BonLivraison  @relation(fields: [bonLivraisonId], references: [id])
+  ordre           Int           @default(0)
+  statutLivraison String        @default("en_attente") // en_attente, livré, retourné
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  dateLivraison   DateTime?
+  motifRetour     String?
+  createdAt       DateTime      @default(now())
+}
+
+// ==============================
+// ACHATS - DEMANDE DE PRIX
+// ==============================
+
+model DemandePrix {
+  id            String          @id @default(cuid())
+  reference     String          @unique
+  date          DateTime        @default(now())
+  fournisseurId String
+  fournisseur   Fournisseur     @relation(fields: [fournisseurId], references: [id])
+  userId        String?
+  statut        String          @default("en_attente") // en_attente, répondue, expirée
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  items         DemandePrixItem[]
+}
+
+model DemandePrixItem {
+  id            String      @id @default(cuid())
+  demandePrixId String
+  demandePrix   DemandePrix @relation(fields: [demandePrixId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id])
+  quantite      Int
+  prixPropose   Float?
+}
+
+// ==============================
+// ACHATS - BON DE RÉCEPTION
+// ==============================
+
+model BonReception {
+  id            String            @id @default(cuid())
+  reference     String            @unique
+  date          DateTime          @default(now())
+  fournisseurId String
+  fournisseur   Fournisseur       @relation(fields: [fournisseurId], references: [id])
+  depotId       String?
+  depot         Depot?            @relation(fields: [depotId], references: [id])
+  totalHT       Float             @default(0)
+  totalTTC      Float             @default(0)
+  valide        Boolean           @default(false)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  items         BonReceptionItem[]
+}
+
+model BonReceptionItem {
+  id              String       @id @default(cuid())
+  bonReceptionId  String
+  bonReception    BonReception @relation(fields: [bonReceptionId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product      @relation(fields: [productId], references: [id])
+  quantity        Int
+  priceHT         Float
+  totalHT         Float
+  totalTTC        Float
+}
+
+// ==============================
+// ACHATS - FACTURE FOURNISSEUR
+// ==============================
+
+model FactureFournisseur {
+  id            String                  @id @default(cuid())
+  reference     String                  @unique
+  date          DateTime                @default(now())
+  fournisseurId String
+  fournisseur   Fournisseur             @relation(fields: [fournisseurId], references: [id])
+  totalHT       Float                   @default(0)
+  totalTVA      Float                   @default(0)
+  totalTTC      Float                   @default(0)
+  dueDate       DateTime?
+  statut        String                  @default("impayée")
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  items         FactureFournisseurItem[]
+  reglements    ReglementFournisseurItem[]
+}
+
+model FactureFournisseurItem {
+  id          String            @id @default(cuid())
+  factureId   String
+  facture     FactureFournisseur @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product           @relation(fields: [productId], references: [id])
+  quantity    Int
+  priceHT     Float
+  discount    Float             @default(0)
+  tva         Float             @default(20)
+  totalHT     Float
+  totalTTC    Float
+}
+
+// ==============================
+// ACHATS - RETOUR FOURNISSEUR
+// ==============================
+
+model BonRetourFournisseur {
+  id            String                     @id @default(cuid())
+  reference     String                     @unique
+  date          DateTime                   @default(now())
+  fournisseurId String
+  fournisseur   Fournisseur                @relation(fields: [fournisseurId], references: [id])
+  motif         String?
+  totalHT       Float                      @default(0)
+  totalTTC      Float                      @default(0)
+  createdAt     DateTime                   @default(now())
+
+  items         BonRetourFournisseurItem[]
+  bonsAvoir     BonAvoirFournisseur[]
+}
+
+model BonRetourFournisseurItem {
+  id          String                @id @default(cuid())
+  retourId    String
+  retour      BonRetourFournisseur  @relation(fields: [retourId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product               @relation(fields: [productId], references: [id])
+  quantity    Int
+  priceHT     Float
+  totalHT     Float
+  totalTTC    Float
+}
+
+// ==============================
+// ACHATS - AVOIR FOURNISSEUR
+// ==============================
+
+model BonAvoirFournisseur {
+  id            String                     @id @default(cuid())
+  reference     String                     @unique
+  date          DateTime                   @default(now())
+  fournisseurId String
+  fournisseur   Fournisseur                @relation(fields: [fournisseurId], references: [id])
+  retourId      String?
+  retour        BonRetourFournisseur?      @relation(fields: [retourId], references: [id])
+  totalTTC      Float                      @default(0)
+  utilise       Boolean                    @default(false)
+  createdAt     DateTime                   @default(now())
+
+  items         BonAvoirFournisseurItem[]
+}
+
+model BonAvoirFournisseurItem {
+  id          String                 @id @default(cuid())
+  avoirId     String
+  avoir       BonAvoirFournisseur    @relation(fields: [avoirId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product                @relation(fields: [productId], references: [id])
+  montant     Float
+}
+
+// ==============================
+// ACHATS - RÈGLEMENT FOURNISSEUR
+// ==============================
+
+model ReglementFournisseur {
+  id              String                     @id @default(cuid())
+  reference       String                     @unique
+  date            DateTime                   @default(now())
+  fournisseurId   String
+  fournisseur     Fournisseur                @relation(fields: [fournisseurId], references: [id])
+  montant         Float
+  modePaiementId  String?
+  modePaiement    ModeReglement?              @relation(fields: [modePaiementId], references: [id])
+  referenceChèque String?
+  userId          String?
+  user            User?                       @relation(fields: [userId], references: [id])
+  createdAt       DateTime                    @default(now())
+
+  items           ReglementFournisseurItem[]
+}
+
+model ReglementFournisseurItem {
+  id          String              @id @default(cuid())
+  reglementId String
+  reglement   ReglementFournisseur @relation(fields: [reglementId], references: [id], onDelete: Cascade)
+  factureId   String
+  facture     FactureFournisseur  @relation(fields: [factureId], references: [id])
+  montantApplique Float
+}
+
+// ==============================
+// STOCK
+// ==============================
+
+model MouvementStock {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  depotId     String?
+  depot       Depot?   @relation(fields: [depotId], references: [id])
+  type        String   // entrée, sortie, correction
+  quantite    Int
+  prixUnitaire Float?
+  documentRef String?
+  motif       String?
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+model Inventaire {
+  id        String          @id @default(cuid())
+  reference String          @unique
+  date      DateTime        @default(now())
+  depotId   String?
+  depot     Depot?          @relation(fields: [depotId], references: [id])
+  statut    String          @default("brouillon") // brouillon, validé
+  userId    String?
+  user      User?           @relation(fields: [userId], references: [id])
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  items     InventaireItem[]
+}
+
+model InventaireItem {
+  id              String    @id @default(cuid())
+  inventaireId    String
+  inventaire      Inventaire @relation(fields: [inventaireId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product   @relation(fields: [productId], references: [id])
+  stockTheorique  Int
+  stockPhysique   Int
+  ecart           Int
+}
+
+// ==============================
+// CLIENT PORTAL
+// ==============================
+
+model CommandeClient {
+  id        String               @id @default(cuid())
+  reference String               @unique
+  date      DateTime             @default(now())
+  clientId  String
+  client    Client               @relation(fields: [clientId], references: [id])
+  userId    String?
+  user      User?                @relation(fields: [userId], references: [id])
+  statut    String               @default("en_attente") // en_attente, confirmée, livrée, annulée
+  totalHT   Float                @default(0)
+  totalTTC  Float                @default(0)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  items     CommandeClientItem[]
+}
+
+model CommandeClientItem {
+  id           String        @id @default(cuid())
+  commandeId   String
+  commande     CommandeClient @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product       @relation(fields: [productId], references: [id])
+  quantity     Int
+  priceHT      Float
+  totalHT      Float
+  totalTTC     Float
+}
+
+model Promotion {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  libelle     String?
+  type        String   @default("remise") // remise, produit_gratuit
+  valeur      Float
+  produitId   String?
+  produit     Product? @relation(fields: [produitId], references: [id])
+  dateDebut   DateTime
+  dateFin     DateTime
+  actif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+// ==============================
+// NOMENCLATURE (BOM)
+// ==============================
+
+model Nomenclature {
+  id        String              @id @default(cuid())
+  code      String              @unique
+  libelle   String
+  famille   String?
+  unite     String              @default("U")
+  coutTotal Float               @default(0)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  items     NomenclatureItem[]
+}
+
+model NomenclatureItem {
+  id              String       @id @default(cuid())
+  nomenclatureId  String
+  nomenclature    Nomenclature @relation(fields: [nomenclatureId], references: [id], onDelete: Cascade)
+  codeEnfant      String
+  libelleEnfant   String
+  unite           String       @default("U")
+  qte             Float        @default(1)
+  puht            Float        @default(0)
+  montant         Float        @default(0)
+}
+
+// ==============================
+// AUTOMATION
+// ==============================
+
+model RegleFacturationAuto {
+  id          String   @id @default(cuid())
+  nom         String
+  jourMois    Int      @default(1) // jour du mois (1-31)
+  condition   String?  // filtre JSON (ex: {"clientId": "xxx"})
+  actif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

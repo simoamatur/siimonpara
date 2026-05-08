@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    <meta name="theme-color" content="#5AAF9F" />
+    <meta name="msapplication-TileColor" content="#5AAF9F" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="SIMOnPARA" />
+    <meta name="application-name" content="SIMOnPARA ERP" />
+    <meta name="description" content="ERP de gestion pharmaceutique B2B - Achats, Ventes, Stock, Comptabilité" />
+    <meta name="keywords" content="ERP, pharmacie, gestion, stock, ventes, achats" />
+    <meta name="author" content="SIMOnPARA" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Filtre erreurs externes IA (extensions navigateur) -->
+    <script>
+      window.addEventListener("error", (e) => {
+        if (e.message?.includes("model does not support image input") || 
+            e.message?.includes("Cannot read") ||
+            e.message?.includes("image input")) {
+          e.preventDefault();
+          console.warn('[SIMOnPARA] Erreur externe ignorée:', e.message);
+        }
+      });
+      
+      // Ignorer aussi les erreurs Promise non gérées liées à l'IA
+      window.addEventListener("unhandledrejection", (e) => {
+        const reason = String(e.reason);
+        if (reason.includes("model does not support image input") || 
+            reason.includes("Cannot read") ||
+            reason.includes("image input")) {
+          e.preventDefault();
+          console.warn('[SIMOnPARA] Promise rejection externe ignorée:', reason);
+        }
+      });
+    </script>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/icons/icon-192x192.svg" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.svg" />
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <title>SIMOnPARA ERP - Gestion Pharmaceutique</title>
+    
+    <!-- PWA Registration Script -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('[PWA] Service Worker registered:', registration.scope);
+              
+              // Check for updates
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('[PWA] New version available');
+                    // Optional: Show update notification to user
+                  }
+                });
+              });
+            })
+            .catch((error) => {
+              console.error('[PWA] Service Worker registration failed:', error);
+            });
+        });
+        
+        // Listen for messages from service worker
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          console.log('[PWA] Message from SW:', event.data);
+        });
+      }
+    </script>
+    
+    <!-- Install Prompt Handler -->
+    <script>
+      let deferredPrompt;
+      
+      window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent the mini-infobar from appearing on mobile
+        e.preventDefault();
+        // Stash the event so it can be triggered later
+        deferredPrompt = e;
+        console.log('[PWA] Install prompt available');
+        
+        // Optionally show custom install button
+        // You can dispatch a custom event or set a global variable
+        window.dispatchEvent(new CustomEvent('pwaInstallAvailable', { detail: e }));
+      });
+      
+      window.addEventListener('appinstalled', () => {
+        console.log('[PWA] App installed');
+        deferredPrompt = null;
+        window.dispatchEvent(new CustomEvent('pwaInstalled'));
+      });
+      
+      // Export function to trigger install
+      window.installPWA = async () => {
+        if (!deferredPrompt) {
+          console.log('[PWA] Install prompt not available');
+          return false;
+        }
+        
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log('[PWA] User response:', outcome);
+        deferredPrompt = null;
+        return outcome === 'accepted';
+      };
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <div style="padding: 20px; text-align: center; font-family: system-ui, sans-serif;">
+        <h1 style="color: #5AAF9F;">SIMOnPARA ERP</h1>
+        <p>Cette application nécessite JavaScript pour fonctionner.</p>
+        <p>Veuillez activer JavaScript dans votre navigateur.</p>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
